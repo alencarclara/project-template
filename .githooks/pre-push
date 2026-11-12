@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# 1) Bloqueia push direto no main (substitui o ruleset em repo privado Free)
+while read -r local_ref local_sha remote_ref remote_sha; do
+  if [ "$remote_ref" = "refs/heads/main" ]; then
+    echo "pre-push: push direto no main bloqueado. Use uma branch e abra um PR."
+    exit 1
+  fi
+done
+
+# 2) Roda os testes do projeto
+echo "pre-push: rodando verificacoes..."
+if [ -f package.json ] && grep -q '"test"' package.json; then
+  npm test
+elif [ -f pyproject.toml ] || [ -f requirements.txt ]; then
+  python -m pytest -q
+else
+  echo "pre-push: nenhuma stack configurada em .githooks/pre-push, pulando testes."
+fi
+
+# 3) Opcional: procura segredos se o gitleaks estiver instalado
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks detect --no-banner
+fi
